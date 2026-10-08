@@ -1,0 +1,24 @@
+{
+  "name": "opencode-unsloth-limits",
+  "version": "1.0.0",
+  "description": "Keeps OpenCode's model context limits in sync with a local Unsloth server.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hedinfaok/opencode-unsloth-limits.git"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "unsloth",
+    "llama.cpp"
+  ]
+}
