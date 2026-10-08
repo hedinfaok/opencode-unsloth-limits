@@ -24,6 +24,25 @@
 const DEFAULT_OUTPUT = 8192
 const OPENAI_COMPATIBLE = "@opencode/ai/providers/openai-compatible"
 
+// Reasoning effort levels the local llama-server / chat template understands.
+// "none" disables thinking on the server; the DeepSeek chat template branches on
+// "high" and "max". Any other value falls through to the template default, so
+// these are the meaningful ones. Override with the plugin option
+// `reasoningVariants`; disable with `reasoningVariants: []`.
+const DEFAULT_REASONING_VARIANTS = [
+  { id: "off",  body: { reasoning_effort: "none" } },
+  { id: "high", body: { reasoning_effort: "high" } },
+  { id: "max",  body: { reasoning_effort: "max" } },
+]
+
+const resolveVariants = (caps, options) => {
+  if (Array.isArray(options.reasoningVariants)) {
+    return options.reasoningVariants.map((v) => ({ id: v.id, body: { ...v.body } }))
+  }
+  if (caps && caps.supports_reasoning_effort === false) return []
+  return DEFAULT_REASONING_VARIANTS.map((v) => ({ id: v.id, body: { ...v.body } }))
+}
+
 const CONFIG_DIR = process.env.XDG_CONFIG_HOME
   ? `${process.env.XDG_CONFIG_HOME}/opencode`
   : `${process.env.HOME}/.config/opencode`
@@ -44,22 +63,33 @@ const displayName = (m) =>
 
 // A complete Model.Info. Missing any of these is what crashed OpenCode before
 // (`time.released` was undefined during Model.snapshot's sort).
-const toModel = (m, providerID, effective) => ({
-  id: modelKey(m.id),
-  modelID: String(m.id),
-  providerID,
-  name: displayName(m),
-  capabilities: { tools: true, input: ["text"], output: ["text"] },
-  variants: [],
-  time: { released: typeof m.created === "number" ? m.created * 1000 : Date.now() },
-  cost: [{ input: 0, output: 0, cache: { read: 0, write: 0 } }],
-  status: "active",
-  enabled: true,
-  limit: {
-    context: effective,
-    output: Math.min(effective, DEFAULT_OUTPUT),
-  },
-})
+const toModel = (m, providerID, effective, opts = {}) => {
+  const caps = opts.caps
+  const modalities = opts.modalities
+  const model = {
+    id: modelKey(m.id),
+    modelID: String(m.id),
+    providerID,
+    name: displayName(m),
+    capabilities: {
+      tools: caps ? caps.supports_tools !== false : true,
+      input: modalities && modalities.vision ? ["text", "image"] : ["text"],
+      output: ["text"],
+    },
+    variants: Array.isArray(opts.variants) ? opts.variants : [],
+    time: { released: typeof m.created === "number" ? m.created * 1000 : Date.now() },
+    cost: [{ input: 0, output: 0, cache: { read: 0, write: 0 } }],
+    status: "active",
+    enabled: true,
+    limit: {
+      context: effective,
+      output: Math.min(effective, DEFAULT_OUTPUT),
+    },
+  }
+  if (m.quant) model.family = String(m.quant)
+  if (opts.defaultBody) model.body = opts.defaultBody
+  return model
+}
 
 export default {
   id: "unsloth.limits",
@@ -94,6 +124,8 @@ export default {
         ])
         let slots = 1
         let serverContext
+        let caps = null
+        let modalities = null
         if (propsRes.status === "fulfilled" && propsRes.value.ok) {
           const props = await propsRes.value.json().catch(() => undefined)
           if (props && typeof props.total_slots === "number" && props.total_slots > 0) {
@@ -102,6 +134,8 @@ export default {
           if (props && typeof props.n_ctx === "number" && props.n_ctx > 0) {
             serverContext = props.n_ctx
           }
+          if (props && props.chat_template_caps) caps = props.chat_template_caps
+          if (props && props.modalities) modalities = props.modalities
         }
         if (modelsRes.status !== "fulfilled" || !modelsRes.value.ok) {
           throw new Error(`GET ${base}/models failed`)
@@ -124,6 +158,10 @@ export default {
         }
 
         let loadedID = null
+        const variants = resolveVariants(caps, options)
+        const defaultBody = options.defaultReasoningEffort
+          ? { reasoning_effort: String(options.defaultReasoningEffort) }
+          : undefined
         const models = []
         for (const m of raw) {
           if (!m.id) continue
@@ -134,7 +172,14 @@ export default {
                 ? m.max_context_length
                 : globalContext
           if (m.loaded === true) loadedID = modelKey(m.id)
-          models.push(toModel(m, providerID, Math.floor(Math.min(own, globalContext) / slots)))
+          models.push(
+            toModel(m, providerID, Math.floor(Math.min(own, globalContext) / slots), {
+              caps,
+              modalities,
+              variants,
+              defaultBody,
+            }),
+          )
         }
         if (!models.length) throw new Error("server reported no usable models")
         return { models, slots, loadedID }
@@ -206,6 +251,9 @@ export default {
             settings: {
               baseURL: base,
               apiKey: typeof options.apiKey === "string" ? options.apiKey : "not-needed",
+              ...(options.providerSettings && typeof options.providerSettings === "object"
+                ? options.providerSettings
+                : {}),
             },
           },
           models: current.models,

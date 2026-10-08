@@ -1,6 +1,6 @@
 {
   "name": "opencode-unsloth-limits",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Mirrors a local Unsloth server's models, names, and context sizes into OpenCode.",
   "type": "module",
   "main": "index.js",
