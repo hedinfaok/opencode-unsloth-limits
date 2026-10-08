@@ -1,6 +1,8 @@
 # opencode-unsloth-limits
 
-Keeps OpenCode's model context limits in sync with a local Unsloth server, so OpenCode stops sending prompts the server rejects as too long.
+Makes OpenCode use your local Unsloth server's models, names, and real context
+sizes automatically. When the server changes its loaded model or context size,
+OpenCode follows.
 
 ## Add to OpenCode v2
 
@@ -10,6 +12,9 @@ opencode plugin add github:hedinfaok/opencode-unsloth-limits
 
 ## Setup
 
-In `~/.config/opencode/opencode.json`, remove the `limit` block from each model under your Unsloth provider. The plugin sets the limits instead.
+Remove the `unsloth` provider block from `~/.config/opencode/opencode.json`. The
+plugin creates it from the server.
 
-By default it expects the server at `http://127.0.0.1:8888` and the provider to be named `unsloth`. It checks every 10 seconds, and shows a desktop notification if it can't reach the server.
+By default it expects the server at `http://127.0.0.1:8888` and names the
+provider `unsloth`. It checks every 15 seconds. If the server can't be reached,
+it keeps the last known models and shows a desktop notification.

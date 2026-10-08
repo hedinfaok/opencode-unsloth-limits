@@ -1,7 +1,7 @@
 {
   "name": "opencode-unsloth-limits",
-  "version": "1.0.0",
-  "description": "Keeps OpenCode's model context limits in sync with a local Unsloth server.",
+  "version": "2.0.0",
+  "description": "Mirrors a local Unsloth server's models, names, and context sizes into OpenCode.",
   "type": "module",
   "main": "index.js",
   "exports": {
