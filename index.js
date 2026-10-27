@@ -21,7 +21,7 @@
  * `{ id, setup }`. See README.md.
  */
 
-const DEFAULT_OUTPUT = 8192
+const DEFAULT_OUTPUT = 32000
 const OPENAI_COMPATIBLE = "@opencode/ai/providers/openai-compatible"
 
 // Reasoning effort levels the local llama-server / chat template understands.
